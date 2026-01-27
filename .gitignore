@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# Environment variables
+.env
+
+# ML artifacts (can be regenerated)
+models/
+results/
+dataset/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.db
