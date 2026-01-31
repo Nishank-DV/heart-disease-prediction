@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Risk Assessment Result</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+        }
+
+        .navbar {
+            background: #0a2540;
+            color: white;
+            padding: 15px 40px;
+            font-size: 18px;
+        }
+
+        .card {
+            background: white;
+            width: 600px;
+            margin: 60px auto;
+            padding: 35px;
+            border-radius: 10px;
+            box-shadow: 0 0 18px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .risk {
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .high {
+            color: #e74c3c;
+        }
+
+        .low {
+            color: #2ecc71;
+        }
+
+        .desc {
+            color: #555;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 25px;
+            text-decoration: none;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    Heart Disease Risk Result
+</div>
+
+<div class="card">
+    <h2>Prediction Summary</h2>
+
+    {% if "High" in result %}
+        <div class="risk high">High Risk Detected</div>
+        <p class="desc">
+            Based on the provided clinical parameters, the model indicates a
+            higher likelihood of cardiovascular disease. Further medical
+            evaluation is recommended.
+        </p>
+    {% else %}
+        <div class="risk low">Low Risk Detected</div>
+        <p class="desc">
+            The model predicts a lower likelihood of heart disease based on the
+            given inputs. Continue maintaining a healthy lifestyle.
+        </p>
+    {% endif %}
+
+    <a href="/predict">Run Another Assessment</a><br>
+    <a href="/">Return to Home</a>
+</div>
+
+</body>
+</html>
