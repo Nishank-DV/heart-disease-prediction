@@ -1,21 +1,36 @@
-from flask import Flask, render_template, request
-import torch
 import os
 import sys
+from typing import Dict, Any
 
-# Allow imports from project root
-sys.path.append(os.path.abspath(".."))
+import requests
 
-from client.model import HeartDiseaseMLP
+try:
+    from flask import Flask, render_template, request
+except ModuleNotFoundError:
+    print("Flask UI is deprecated. Use 'python run.py' for the FastAPI UI.")
+    raise SystemExit(0)
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+import config
 
 app = Flask(__name__)
 
-# Load model
-MODEL_PATH = os.path.join("..", "models", "client_1_model.pth")
 
-model = HeartDiseaseMLP(input_size=13)
-model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
-model.eval()
+def make_prediction(payload: Dict[str, Any]) -> Dict[str, Any]:
+    try:
+        response = requests.post(
+            config.get_predict_endpoint(),
+            json=payload,
+            timeout=config.API_TIMEOUT
+        )
+        if response.status_code == 200:
+            return response.json()
+        return {"error": response.text}
+    except Exception as exc:
+        return {"error": str(exc)}
 
 
 @app.route("/")
@@ -23,45 +38,41 @@ def home():
     return render_template("index.html")
 
 
+@app.route("/ui/predict", methods=["GET", "POST"])
 @app.route("/predict", methods=["GET", "POST"])
 def predict():
     if request.method == "POST":
-        features = [
-            float(request.form["age"]),
-            float(request.form["sex"]),
-            float(request.form["cp"]),
-            float(request.form["trestbps"]),
-            float(request.form["chol"]),
-            float(request.form["fbs"]),
-            float(request.form["restecg"]),
-            float(request.form["thalach"]),
-            float(request.form["exang"]),
-            float(request.form["oldpeak"]),
-            float(request.form["slope"]),
-            float(request.form["ca"]),
-            float(request.form["thal"])
-        ]
+        payload = {
+            "age": float(request.form["age"]),
+            "sex": float(request.form["sex"]),
+            "cp": float(request.form["cp"]),
+            "trestbps": float(request.form["trestbps"]),
+            "chol": float(request.form["chol"]),
+            "fbs": float(request.form["fbs"]),
+            "restecg": float(request.form["restecg"]),
+            "thalach": float(request.form["thalach"]),
+            "exang": float(request.form["exang"]),
+            "oldpeak": float(request.form["oldpeak"]),
+            "slope": float(request.form["slope"]),
+            "ca": float(request.form["ca"]),
+            "thal": float(request.form["thal"])
+        }
 
-        with torch.no_grad():
-            input_tensor = torch.tensor([features], dtype=torch.float32)
-            output = model(input_tensor)
-            probability = output.item()
-
-        result = (
-            "High Risk of Heart Disease"
-            if probability >= 0.5
-            else "Low Risk of Heart Disease"
-        )
+        result = make_prediction(payload)
+        if "error" in result:
+            return render_template("predict.html", error=result["error"])
 
         return render_template(
             "result.html",
-            result=result,
-            probability=round(probability * 100, 2)
+            prediction_text=result.get("prediction_text", ""),
+            risk_level=result.get("risk_level", "Low"),
+            probability=round(result.get("probability", 0.0) * 100, 2),
+            record_id=result.get("record_id", "-")
         )
 
     return render_template("predict.html")
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host=config.FRONTEND_HOST, port=config.FRONTEND_PORT, debug=False)
  

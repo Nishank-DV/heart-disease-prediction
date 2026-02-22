@@ -14,9 +14,10 @@ def download_heart_disease_dataset():
     Download the Heart Disease dataset from UCI ML Repository
     """
     # Create dataset directory
-    os.makedirs("dataset", exist_ok=True)
+    os.makedirs("dataset/raw", exist_ok=True)
     
-    dataset_path = "dataset/heart.csv"
+    dataset_path = os.path.join("dataset", "raw", "heart.csv")
+    legacy_path = os.path.join("dataset", "heart.csv")
     
     # Check if dataset already exists
     if os.path.exists(dataset_path):
@@ -38,6 +39,12 @@ def download_heart_disease_dataset():
         print(f"Attempting to download from: {url}")
         urllib.request.urlretrieve(url, dataset_path)
         print(f"Dataset downloaded successfully to {dataset_path}")
+        if not os.path.exists(legacy_path):
+            try:
+                import shutil
+                shutil.copy2(dataset_path, legacy_path)
+            except Exception:
+                pass
         
         # Verify the dataset
         df = pd.read_csv(dataset_path)
@@ -62,7 +69,8 @@ def create_sample_dataset():
     """
     import numpy as np
     
-    dataset_path = "dataset/heart.csv"
+    dataset_path = os.path.join("dataset", "raw", "heart.csv")
+    legacy_path = os.path.join("dataset", "heart.csv")
     
     if os.path.exists(dataset_path):
         print(f"Dataset already exists at {dataset_path}")
@@ -108,6 +116,12 @@ def create_sample_dataset():
     
     # Save to CSV
     df.to_csv(dataset_path, index=False)
+    if not os.path.exists(legacy_path):
+        try:
+            import shutil
+            shutil.copy2(dataset_path, legacy_path)
+        except Exception:
+            pass
     print(f"Sample dataset created at {dataset_path}")
     print(f"Dataset shape: {df.shape}")
     

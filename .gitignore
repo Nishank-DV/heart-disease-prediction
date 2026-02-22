@@ -1,19 +1,51 @@
+# -----------------------------
 # Python
+# -----------------------------
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
 
-# Virtual environment
+# -----------------------------
+# Virtual Environment
+# -----------------------------
 venv/
+env/
+.venv/
 
-# Environment variables
+# -----------------------------
+# Environment Variables
+# -----------------------------
 .env
 
-# ML artifacts (can be regenerated)
-models/
+# -----------------------------
+# ML Artifacts
+# -----------------------------
+*.pkl
+*.joblib
 results/
 dataset/
 
-# OS files
+# -----------------------------
+# Database
+# -----------------------------
+*.db
+*.sqlite3
+
+# -----------------------------
+# IDE / Editor
+# -----------------------------
+.vscode/
+.idea/
+
+# -----------------------------
+# OS Files
+# -----------------------------
 .DS_Store
 Thumbs.db
-*.db
+
+# -----------------------------
+# Logs
+# -----------------------------
+*.log

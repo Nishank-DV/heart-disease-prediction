@@ -8,6 +8,7 @@ import sys
 import subprocess
 import time
 import pandas as pd
+import config
 
 def split_dataset_for_federated_learning(
     dataset_path: str,
@@ -41,12 +42,12 @@ def main():
     print("FEDERATED LEARNING FOR HEART DISEASE PREDICTION")
     print("=" * 60)
     
-    dataset_path = "dataset/heart.csv"
+    dataset_path = config.get_dataset_path()
     num_clients = 3
     num_rounds = 10
     
     # Check dataset
-    if not os.path.exists(dataset_path):
+    if not dataset_path or not os.path.exists(dataset_path):
         print(f"Error: Dataset not found at {dataset_path}")
         print("Run: python download_dataset.py")
         return

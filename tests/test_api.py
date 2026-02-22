@@ -44,13 +44,11 @@ class TestAPI:
     """Test cases for API endpoints"""
     
     def test_root_endpoint(self):
-        """Test 1: Root endpoint returns API information"""
+        """Test 1: Root endpoint returns UI HTML"""
         response = client.get("/")
         assert response.status_code == 200
-        data = response.json()
-        assert "message" in data
-        assert "version" in data
-        assert "endpoints" in data
+        assert "text/html" in response.headers.get("content-type", "")
+        assert "Heart Disease" in response.text
     
     def test_health_check(self):
         """Test 2: Health check endpoint works"""

@@ -1,10 +1,10 @@
 """
-SQLAlchemy Database Models
-Defines database tables and relationships
+SQLAlchemy models for backend database tables.
 """
 
-from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean
+from sqlalchemy import Column, DateTime, Float, Integer, String
 from sqlalchemy.sql import func
+
 from backend.database import Base
 
 

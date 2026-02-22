@@ -166,6 +166,16 @@ pip install -r requirements.txt
 python verify_setup.py
 ```
 
+### Step 4: Run the Web UI (Single Command)
+
+```bash
+python run.py
+```
+
+Then open:
+- http://127.0.0.1:8000/ (Web UI)
+- http://127.0.0.1:8000/docs (API docs)
+
 ---
 
 ## 📖 Usage Guide

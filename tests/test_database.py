@@ -19,6 +19,7 @@ from backend.crud import (
     create_prediction,
     get_prediction,
     get_all_predictions,
+    get_predictions_by_result,
     get_prediction_statistics,
     delete_prediction
 )
@@ -125,11 +126,11 @@ class TestDatabase:
         
         # Get only disease predictions
         disease_predictions = get_predictions_by_result(db_session, prediction_value=1)
-        assert len(disease_predictions) == 3  # 0, 2, 4 are disease
+        assert len(disease_predictions) == 2  # 1, 3 are disease
         
         # Get only no-disease predictions
         no_disease = get_predictions_by_result(db_session, prediction_value=0)
-        assert len(no_disease) == 2  # 1, 3 are no disease
+        assert len(no_disease) == 3  # 0, 2, 4 are no disease
     
     def test_prediction_statistics(self, db_session):
         """Test 5: Get prediction statistics"""

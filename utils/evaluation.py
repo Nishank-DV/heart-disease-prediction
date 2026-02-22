@@ -33,6 +33,26 @@ plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
 
 
+def calculate_metrics(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    y_pred_proba: Optional[np.ndarray] = None
+) -> Dict:
+    """
+    Backward-compatible utility wrapper for metric calculation.
+
+    Args:
+        y_true: True labels
+        y_pred: Predicted labels
+        y_pred_proba: Predicted probabilities (optional)
+
+    Returns:
+        Dictionary of computed metrics
+    """
+    evaluator = ModelEvaluator(model_name="Evaluation")
+    return evaluator.calculate_metrics(y_true, y_pred, y_pred_proba)
+
+
 class ModelEvaluator:
     """
     Comprehensive model evaluator for heart disease prediction

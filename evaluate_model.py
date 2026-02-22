@@ -40,9 +40,22 @@ def main():
     
     # Preprocess data
     print("\n[Step 1] Preprocessing data...")
-    preprocessor = DataPreprocessor(client_id=0, apply_smote=False)
-    df = preprocessor.load_data(args.dataset)
-    train_loader, test_loader, num_features = preprocessor.prepare_data(df, test_size=0.2)
+    preprocessor = DataPreprocessor(client_id=0)
+    preprocessed_data = preprocessor.preprocess(
+        file_path=args.dataset,
+        test_size=0.2,
+        random_state=42,
+        normalize=True
+    )
+    num_features = preprocessed_data["num_features"]
+    X_test = torch.FloatTensor(preprocessed_data["X_test"])
+    y_test = torch.FloatTensor(preprocessed_data["y_test"]).unsqueeze(1)
+    test_dataset = torch.utils.data.TensorDataset(X_test, y_test)
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=32,
+        shuffle=False
+    )
     
     print(f"Number of features: {num_features}")
     print(f"Test samples: {len(test_loader.dataset)}")

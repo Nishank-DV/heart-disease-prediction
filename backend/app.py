@@ -3,221 +3,137 @@ FastAPI Application - Heart Disease Prediction API
 REST API for heart disease prediction using trained federated learning model
 """
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import List
-import torch
-import numpy as np
+from contextlib import asynccontextmanager
 import os
 import sys
+from pydantic import ValidationError
 
-# Add project root to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-try:
-    from backend.database import get_db, init_db, engine
-    from backend.models import Base, Prediction
-    from backend.schemas import (
-        PatientData,
-        PredictionResponse,
-        PredictionRecord,
-        HealthResponse
-    )
-    from backend.crud import (
-        create_prediction,
-        get_prediction,
-        get_all_predictions,
-        get_predictions_by_result,
-        get_prediction_statistics,
-        delete_prediction
-    )
-except ImportError:
-    # Handle relative imports
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from backend.database import get_db, init_db, engine
-    from backend.models import Base, Prediction
-    from backend.schemas import (
-        PatientData,
-        PredictionResponse,
-        PredictionRecord,
-        HealthResponse
-    )
-    from backend.crud import (
-        create_prediction,
-        get_prediction,
-        get_all_predictions,
-        get_predictions_by_result,
-        get_prediction_statistics,
-        delete_prediction
-    )
-from client.model import HeartDiseaseMLP
-from client.data_preprocessing import DataPreprocessor
-from sklearn.preprocessing import StandardScaler
-import pickle
+from backend.database import get_db, init_db
+from backend.schemas import (
+    PatientData,
+    PredictionResponse,
+    PredictionRecord,
+    HealthResponse
+)
+from backend.crud import (
+    create_prediction,
+    get_prediction,
+    get_all_predictions,
+    get_prediction_statistics,
+    delete_prediction
+)
+from backend.ml_model import load_model, is_model_loaded, predict_heart_disease
 
-# Initialize FastAPI app
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan event handler for startup and shutdown."""
+    init_db()
+    print("[OK] Database tables created")
+
+    load_model()
+    print("[OK] API startup complete")
+    yield
+
+
 app = FastAPI(
     title="Heart Disease Prediction API",
     description="REST API for heart disease prediction using Federated Learning model",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
+
+templates = Jinja2Templates(directory=os.path.join(project_root, "frontend", "templates"))
+static_dir = os.path.join(project_root, "frontend", "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # CORS middleware (allow cross-origin requests)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # In production, specify actual origins
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global variables for model and preprocessor
-model = None
-scaler = None
-num_features = 13  # Number of features in heart disease dataset
 
 
-def load_model():
-    """
-    Load the trained federated learning model
-    This function is called at application startup
-    """
-    global model, scaler
-    
-    # Try to load federated model first, then fallback to local model
-    model_paths = [
-        "models/federated_model.pth",
-        "models/client_1_model.pth",
-        "models/client_2_model.pth",
-        "models/client_3_model.pth"
-    ]
-    
-    model_loaded = False
-    for model_path in model_paths:
-        if os.path.exists(model_path):
-            try:
-                model = HeartDiseaseMLP(input_size=num_features)
-                model.load_state_dict(torch.load(model_path, map_location='cpu'))
-                model.eval()
-                print(f"[OK] Model loaded from: {model_path}")
-                model_loaded = True
-                break
-            except Exception as e:
-                print(f"[WARNING] Failed to load {model_path}: {e}")
-                continue
-    
-    if not model_loaded:
-        # Create a new model if no saved model found
-        print("[WARNING] No saved model found. Using randomly initialized model.")
-        print("[WARNING] For accurate predictions, train a model first using Phase 2.")
-        model = HeartDiseaseMLP(input_size=num_features)
-        model.eval()
-    
-    # Initialize scaler (in production, load from saved scaler)
-    scaler = StandardScaler()
-    print("[OK] Model and scaler initialized")
+@app.get("/", response_class=HTMLResponse, tags=["UI"])
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database and load model on application startup"""
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
-    print("[OK] Database tables created")
-    
-    # Load model
-    load_model()
-    
-    print("[OK] API startup complete")
+@app.get("/ui/predict", response_class=HTMLResponse, tags=["UI"])
+async def ui_predict(request: Request):
+    return templates.TemplateResponse("predict.html", {"request": request})
 
 
-def preprocess_patient_data(patient_data: PatientData) -> torch.Tensor:
-    """
-    Preprocess patient data for model prediction
-    
-    Args:
-        patient_data: Patient medical data
-        
-    Returns:
-        Preprocessed tensor ready for model input
-    """
-    # Convert to numpy array
-    features = np.array([[
-        patient_data.age,
-        patient_data.sex,
-        patient_data.cp,
-        patient_data.trestbps,
-        patient_data.chol,
-        patient_data.fbs,
-        patient_data.restecg,
-        patient_data.thalach,
-        patient_data.exang,
-        patient_data.oldpeak,
-        patient_data.slope,
-        patient_data.ca,
-        patient_data.thal
-    ]])
-    
-    # Normalize features (using scaler - in production, load saved scaler)
-    # For now, we'll use a simple normalization
-    # In production, use the same scaler that was used during training
-    features_normalized = features.astype(np.float32)
-    
-    # Convert to tensor
-    features_tensor = torch.FloatTensor(features_normalized)
-    
-    return features_tensor
+@app.post("/ui/predict", response_class=HTMLResponse, tags=["UI"])
+async def ui_predict_submit(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    data = {key: form.get(key) for key in form.keys()}
 
+    try:
+        patient_data = PatientData(**data)
+        prediction, probability = predict_heart_disease(patient_data)
 
-def predict_heart_disease(patient_data: PatientData) -> tuple:
-    """
-    Predict heart disease for given patient data
-    
-    Args:
-        patient_data: Patient medical data
-        
-    Returns:
-        Tuple of (prediction, probability)
-        - prediction: 0 (no disease) or 1 (disease)
-        - probability: Confidence score (0.0-1.0)
-    """
-    global model
-    
-    if model is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model not loaded. Please ensure model is trained and saved."
+        if probability >= 0.7:
+            risk_level = "High"
+            prediction_text = "Heart disease detected - High risk"
+        elif probability >= 0.5:
+            risk_level = "Medium"
+            prediction_text = "Heart disease possible - Medium risk"
+        else:
+            risk_level = "Low"
+            prediction_text = "No heart disease detected - Low risk"
+
+        db_prediction = create_prediction(
+            db=db,
+            patient_data=patient_data,
+            prediction=prediction,
+            probability=probability
         )
-    
-    # Preprocess data
-    features_tensor = preprocess_patient_data(patient_data)
-    
-    # Make prediction
-    with torch.no_grad():
-        output = model(features_tensor)
-        probability = output.item()
-    
-    # Convert probability to binary prediction (threshold = 0.5)
-    prediction = 1 if probability > 0.5 else 0
-    
-    return prediction, probability
 
-
-@app.get("/", tags=["Root"])
-async def root():
-    """Root endpoint - API information"""
-    return {
-        "message": "Heart Disease Prediction API",
-        "version": "1.0.0",
-        "endpoints": {
-            "health": "/health",
-            "predict": "/predict",
-            "docs": "/docs"
-        }
-    }
+        return templates.TemplateResponse(
+            "result.html",
+            {
+                "request": request,
+                "prediction_text": prediction_text,
+                "risk_level": risk_level,
+                "probability": round(probability * 100, 2),
+                "record_id": db_prediction.id
+            }
+        )
+    except ValidationError:
+        return templates.TemplateResponse(
+            "predict.html",
+            {
+                "request": request,
+                "error": "Invalid input. Please check the highlighted fields."
+            },
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+    except Exception as exc:
+        return templates.TemplateResponse(
+            "predict.html",
+            {
+                "request": request,
+                "error": f"Prediction failed: {exc}"
+            },
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
@@ -231,13 +147,13 @@ async def health_check(db: Session = Depends(get_db)):
     # Check database connection
     db_connected = False
     try:
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db_connected = True
-    except:
+    except Exception:
         db_connected = False
     
     # Check model status
-    model_loaded = model is not None
+    model_loaded = is_model_loaded()
     
     status_msg = "API is healthy"
     if not model_loaded:
@@ -306,6 +222,8 @@ async def predict(
             record_id=db_prediction.id
         )
         
+    except HTTPException as e:
+        raise e
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -339,6 +257,18 @@ async def get_predictions(
     return predictions
 
 
+@app.get("/predictions/stats", tags=["Predictions"])
+async def get_stats(db: Session = Depends(get_db)):
+    """
+    Get prediction statistics
+    
+    Returns:
+        Dictionary with prediction statistics
+    """
+    stats = get_prediction_statistics(db)
+    return stats
+
+
 @app.get("/predictions/{prediction_id}", response_model=PredictionRecord, tags=["Predictions"])
 async def get_prediction_by_id(
     prediction_id: int,
@@ -361,18 +291,6 @@ async def get_prediction_by_id(
             detail=f"Prediction with ID {prediction_id} not found"
         )
     return prediction
-
-
-@app.get("/predictions/stats", tags=["Predictions"])
-async def get_stats(db: Session = Depends(get_db)):
-    """
-    Get prediction statistics
-    
-    Returns:
-        Dictionary with prediction statistics
-    """
-    stats = get_prediction_statistics(db)
-    return stats
 
 
 @app.delete("/predictions/{prediction_id}", tags=["Predictions"])
@@ -398,8 +316,4 @@ async def delete_prediction_by_id(
         )
     return {"message": f"Prediction {prediction_id} deleted successfully"}
 
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 

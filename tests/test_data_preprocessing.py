@@ -82,7 +82,7 @@ class TestDataPreprocessing:
         """Test handling missing values in categorical columns"""
         df = self.create_sample_dataset(50)
         # Add a categorical column with missing values
-        df['test_cat'] = ['A', 'B', 'C'] * 17 + [np.nan] * 2
+        df['test_cat'] = ['A', 'B', 'C'] * 16 + [np.nan] * 2
         df.loc[48:49, 'test_cat'] = np.nan
         
         preprocessor = DataPreprocessor(client_id=1)

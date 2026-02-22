@@ -18,8 +18,8 @@ def check_python_version():
 def check_dependencies():
     """Check if required packages are installed"""
     required_packages = [
-        'numpy', 'pandas', 'sklearn', 'torch', 'flwr', 
-        'imblearn', 'matplotlib', 'seaborn'
+        'numpy', 'pandas', 'sklearn', 'torch', 'flwr',
+        'matplotlib', 'seaborn'
     ]
     
     missing = []
@@ -102,12 +102,23 @@ def check_imports():
 
 def check_dataset():
     """Check if dataset exists"""
-    dataset_path = "dataset/heart.csv"
+    dataset_path = os.path.join("dataset", "raw", "heart.csv")
+    legacy_path = os.path.join("dataset", "heart.csv")
     if os.path.exists(dataset_path):
         print(f"✓ Dataset found: {dataset_path}")
         try:
             import pandas as pd
             df = pd.read_csv(dataset_path)
+            print(f"  Dataset shape: {df.shape}")
+            return True
+        except Exception as e:
+            print(f"❌ Error reading dataset: {e}")
+            return False
+    if os.path.exists(legacy_path):
+        print(f"✓ Dataset found: {legacy_path}")
+        try:
+            import pandas as pd
+            df = pd.read_csv(legacy_path)
             print(f"  Dataset shape: {df.shape}")
             return True
         except Exception as e:

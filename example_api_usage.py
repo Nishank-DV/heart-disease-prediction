@@ -6,9 +6,10 @@ Demonstrates how to interact with the REST API
 import requests
 import json
 from typing import Dict, Any
+import config
 
 # API base URL
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = config.get_public_api_url()
 
 
 def check_api_health() -> bool:

@@ -3,7 +3,7 @@ Pydantic Schemas for Request/Response Validation
 Defines data structures for API requests and responses
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -28,29 +28,32 @@ class PatientData(BaseModel):
     ca: int = Field(..., ge=0, le=3, description="Number of major vessels: 0-3")
     thal: int = Field(..., ge=0, le=3, description="Thalassemia type: 0-3")
     
-    @validator('age')
+    @field_validator('age')
+    @classmethod
     def validate_age(cls, v):
         """Validate age is realistic for medical data"""
         if v < 1 or v > 120:
             raise ValueError("Age must be between 1 and 120 years")
         return v
     
-    @validator('trestbps')
+    @field_validator('trestbps')
+    @classmethod
     def validate_blood_pressure(cls, v):
         """Validate blood pressure is in medical range"""
         if v < 50 or v > 250:
             raise ValueError("Blood pressure must be between 50 and 250 mm Hg")
         return v
     
-    @validator('chol')
+    @field_validator('chol')
+    @classmethod
     def validate_cholesterol(cls, v):
         """Validate cholesterol is in medical range"""
         if v < 100 or v > 600:
             raise ValueError("Cholesterol must be between 100 and 600 mg/dl")
         return v
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "age": 63,
                 "sex": 1,
@@ -67,6 +70,7 @@ class PatientData(BaseModel):
                 "thal": 1
             }
         }
+    )
 
 
 class PredictionResponse(BaseModel):
@@ -79,8 +83,8 @@ class PredictionResponse(BaseModel):
     risk_level: str = Field(..., description="Risk level: Low, Medium, High")
     record_id: Optional[int] = Field(None, description="Database record ID")
     
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "prediction": 1,
                 "probability": 0.85,
@@ -89,6 +93,7 @@ class PredictionResponse(BaseModel):
                 "record_id": 1
             }
         }
+    )
 
 
 class PredictionRecord(BaseModel):
@@ -113,8 +118,7 @@ class PredictionRecord(BaseModel):
     probability: float
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class HealthResponse(BaseModel):

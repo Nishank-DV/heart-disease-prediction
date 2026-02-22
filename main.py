@@ -15,10 +15,12 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from client.client import create_client
+from client.fl_client import create_flower_client
 from client.model import HeartDiseaseMLP
 from utils.evaluation import evaluate_model_comprehensive
 import torch
+import config
+from client.data_preprocessing import DataPreprocessor
 
 
 def split_dataset_for_federated_learning(
@@ -78,12 +80,12 @@ def run_client(client_id: int, data_path: str, server_address: str = "localhost:
     print(f"\n[Client {client_id}] Starting client...")
     
     # Create client
-    client = create_client(
+    client = create_flower_client(
         client_id=client_id,
-        data_path=data_path,
+        client_data_path=data_path,
+        num_features=None,
         local_epochs=5,
-        learning_rate=0.001,
-        apply_smote=True
+        learning_rate=0.001
     )
     
     # Connect to server
@@ -114,6 +116,18 @@ def run_server(num_rounds: int = 10, server_address: str = "localhost:8080"):
     )
 
 
+def _build_test_loader(preprocessed_data, batch_size: int = 32):
+    X_test = torch.FloatTensor(preprocessed_data["X_test"])
+    y_test = torch.FloatTensor(preprocessed_data["y_test"]).unsqueeze(1)
+    test_dataset = torch.utils.data.TensorDataset(X_test, y_test)
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False
+    )
+    return test_loader
+
+
 def evaluate_global_model(
     dataset_path: str,
     model_weights_path: str = None,
@@ -127,16 +141,20 @@ def evaluate_global_model(
         model_weights_path: Optional path to saved model weights
         num_features: Number of input features
     """
-    from client.data_preprocessing import DataPreprocessor
-    
     print("\n" + "=" * 60)
     print("EVALUATING GLOBAL MODEL")
     print("=" * 60)
     
     # Preprocess complete dataset
-    preprocessor = DataPreprocessor(client_id=0, apply_smote=False)
-    df = preprocessor.load_data(dataset_path)
-    train_loader, test_loader, num_features = preprocessor.prepare_data(df, test_size=0.2)
+    preprocessor = DataPreprocessor(client_id=0)
+    preprocessed_data = preprocessor.preprocess(
+        file_path=dataset_path,
+        test_size=0.2,
+        random_state=42,
+        normalize=True
+    )
+    test_loader = _build_test_loader(preprocessed_data)
+    num_features = preprocessed_data["num_features"]
     
     # Create model
     model = HeartDiseaseMLP(input_size=num_features)
@@ -171,13 +189,13 @@ def main():
     print("=" * 60)
     
     # Configuration
-    dataset_path = "dataset/heart.csv"
+    dataset_path = config.get_dataset_path()
     num_clients = 3
     num_rounds = 10
     server_address = "localhost:8080"
     
     # Check if dataset exists
-    if not os.path.exists(dataset_path):
+    if not dataset_path or not os.path.exists(dataset_path):
         print(f"Error: Dataset not found at {dataset_path}")
         print("Please ensure the heart.csv file is in the dataset/ directory")
         return

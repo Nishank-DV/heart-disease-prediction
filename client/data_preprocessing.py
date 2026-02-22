@@ -37,14 +37,16 @@ class DataPreprocessor:
     All preprocessing is done LOCALLY at the client side.
     """
     
-    def __init__(self, client_id: int = 0):
+    def __init__(self, client_id: int = 0, apply_smote: bool = False):
         """
         Initialize the preprocessor
         
         Args:
             client_id: Unique identifier for the client (for logging)
+            apply_smote: Whether to apply SMOTE (not implemented here)
         """
         self.client_id = client_id
+        self.apply_smote = apply_smote
         self.scaler = StandardScaler()
         self.label_encoders = {}  # Store encoders for each categorical feature
         self.target_column = None

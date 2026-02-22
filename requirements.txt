@@ -25,7 +25,8 @@ sqlalchemy>=2.0.0
 pydantic>=2.0.0
 
 # Frontend (Phase 7)
-streamlit>=1.28.0
+jinja2>=3.1.0
+python-multipart>=0.0.7
 requests>=2.31.0
 
 # Testing

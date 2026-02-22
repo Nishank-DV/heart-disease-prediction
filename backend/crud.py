@@ -3,11 +3,13 @@ CRUD Operations for Database
 Create, Read, Update, Delete operations for predictions
 """
 
-from sqlalchemy.orm import Session
 from typing import List, Optional
-from backend.models import Prediction, User
-from backend.schemas import PatientData, PredictionResponse
-from datetime import datetime
+
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from backend.models import Prediction
+from backend.schemas import PatientData
 
 
 def create_prediction(
@@ -123,9 +125,7 @@ def get_prediction_statistics(db: Session) -> dict:
     disease_count = db.query(Prediction).filter(Prediction.prediction == 1).count()
     no_disease_count = db.query(Prediction).filter(Prediction.prediction == 0).count()
     
-    avg_probability = db.query(
-        db.func.avg(Prediction.probability)
-    ).scalar() or 0.0
+    avg_probability = db.query(func.avg(Prediction.probability)).scalar() or 0.0
     
     return {
         "total_predictions": total,

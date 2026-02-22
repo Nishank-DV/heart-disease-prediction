@@ -14,7 +14,7 @@ import flwr as fl
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from client.client import create_client
+from client.fl_client import create_flower_client
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Federated Learning Client")
@@ -49,12 +49,12 @@ if __name__ == "__main__":
     
     # Create client
     print(f"\n[Client {args.client_id}] Initializing...")
-    client = create_client(
+    client = create_flower_client(
         client_id=args.client_id,
-        data_path=args.data_path,
+        client_data_path=args.data_path,
+        num_features=None,
         local_epochs=args.epochs,
-        learning_rate=args.lr,
-        apply_smote=not args.no_smote
+        learning_rate=args.lr
     )
     
     # Connect to server and start training

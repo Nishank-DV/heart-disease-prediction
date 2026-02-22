@@ -22,7 +22,19 @@ import torch
 import torch.nn as nn
 import numpy as np
 from typing import Dict, List, Tuple, Optional
-import flwr as fl
+try:
+    import flwr as fl
+except Exception:
+    class _FallbackNumPyClient:
+        pass
+
+    class _FallbackClientModule:
+        NumPyClient = _FallbackNumPyClient
+
+    class _FallbackFlwr:
+        client = _FallbackClientModule()
+
+    fl = _FallbackFlwr()
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -159,7 +171,7 @@ class FlowerClient(fl.client.NumPyClient):
         Returns:
             List of model parameters as NumPy arrays
         """
-        return [param.data.cpu().numpy() for param in self.model.parameters()]
+        return [param.data.cpu().numpy().copy() for param in self.model.parameters()]
     
     def set_parameters(self, parameters: List[np.ndarray]) -> None:
         """
@@ -301,7 +313,7 @@ class FlowerClient(fl.client.NumPyClient):
 def create_flower_client(
     client_id: int,
     client_data_path: str,
-    num_features: int,
+    num_features: Optional[int] = None,
     local_epochs: int = 5,
     learning_rate: float = 0.001,
     batch_size: int = 32
@@ -320,6 +332,12 @@ def create_flower_client(
     Returns:
         Initialized FlowerClient instance
     """
+    if num_features is None:
+        preprocessor = DataPreprocessor(client_id=client_id)
+        df = preprocessor.load_data(client_data_path)
+        target_col = preprocessor.identify_target_column(df)
+        num_features = len(df.columns) - 1 if target_col else len(df.columns)
+
     client = FlowerClient(
         client_id=client_id,
         client_data_path=client_data_path,
